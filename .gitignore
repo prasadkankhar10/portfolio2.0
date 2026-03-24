@@ -1,0 +1,12 @@
+node_modules/
+.DS_Store
+thumbs.db
+
+# Ignore all enormous 3D models and raw assets by default so we don't break the free tier!
+*.glb
+*.blend
+*.blend1
+
+# Explicitly KEEP ONLY the extremely optimized final assets we actually use!
+!assets/working_portfolio11.glb
+!assets/Adventurer (2).glb

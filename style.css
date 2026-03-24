@@ -1,0 +1,331 @@
+:root {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --bg-dark: rgba(15, 23, 42, 0.85);
+    --bg-darker: rgba(15, 23, 42, 0.95);
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --border: rgba(255, 255, 255, 0.1);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Space Grotesk', sans-serif;
+}
+
+body {
+    overflow: hidden;
+    background-color: #000;
+    color: var(--text-main);
+}
+
+.hidden {
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+#game-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1;
+}
+
+#crosshair {
+    display: none; /* Disabled in 3rd person to prevent overlapping the character */
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 6px;
+    height: 6px;
+    background-color: white;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 5;
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+#ui-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 10;
+    pointer-events: none; /* Let clicks pass through to canvas when UI is not active */
+}
+
+/* Old UI classes have been completely migrated to RPG-styled CSS below */
+
+/* =========================================
+   RPG HUD & SCROLL MODAL SYSTEM
+========================================= */
+
+/* HUD LAYER */
+#hud-layer {
+    position: absolute;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    z-index: 10;
+    pointer-events: none;
+    font-family: 'Poppins', 'Inter', 'Space Grotesk', sans-serif;
+}
+
+.hud-top-left {
+    position: absolute;
+    top: 1rem;
+    left: 1.5rem;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(4px);
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+    color: #ffffff;
+    border-left: 4px solid #f5a623;
+}
+
+.hud-top-left h2 {
+    margin: 0 0 0.2rem 0;
+    font-size: 1.4rem;
+    color: #f5a623;
+}
+
+.hud-top-left p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #e2e8f0;
+}
+
+.hud-top-right {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    pointer-events: auto;
+}
+
+.rpg-btn {
+    background: #8b5a2b;
+    color: #ffffff;
+    border: 1px solid #a06e3d;
+    padding: 0.8rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Poppins', 'Inter', sans-serif;
+}
+
+.rpg-btn:hover {
+    transform: scale(1.05);
+    filter: brightness(1.2);
+}
+
+/* PROMPT LAYER */
+#prompt-layer {
+    position: absolute;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    z-index: 20;
+    pointer-events: none;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 15vh;
+}
+
+#interaction-prompt {
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    padding: 0.8rem 1.5rem;
+    border-radius: 12px;
+    color: #ffffff;
+    font-family: 'Poppins', 'Inter', sans-serif;
+    font-size: 1.1rem;
+    border: 1px solid rgba(245, 166, 35, 0.3);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    transition: opacity 0.2s ease;
+    animation: promptPulse 2s infinite ease-in-out;
+}
+
+#interaction-prompt.hidden { opacity: 0; }
+#interaction-prompt.visible { opacity: 1; }
+
+.prompt-key {
+    color: #f5a623;
+    font-weight: 900;
+    font-size: 1.2rem;
+    background: rgba(255,255,255,0.1);
+    padding: 0.2rem 0.6rem;
+    border-radius: 6px;
+}
+
+@keyframes promptPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* MODAL LAYER & SCROLL THEME */
+#modal-layer {
+    position: absolute;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    z-index: 100;
+    pointer-events: none;
+}
+
+.scroll-modal {
+    position: absolute;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    backdrop-filter: blur(3px);
+    transition: opacity 0.2s ease-out;
+}
+
+.scroll-modal.hidden {
+    opacity: 0;
+    pointer-events: none !important;
+}
+
+.scroll-modal-content {
+    background: #f5e6c8; /* Medieval Parchment */
+    border: 3px solid #8b5a2b;
+    border-radius: 12px;
+    max-width: 700px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 2.5rem;
+    position: relative;
+    box-shadow: inset 0 0 50px rgba(139, 90, 43, 0.1), 0 20px 40px rgba(0,0,0,0.5);
+    color: #2b2b2b;
+    font-family: 'Poppins', 'Inter', sans-serif;
+    transition: transform 0.2s ease-out;
+    transform: scale(1);
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+}
+
+.scroll-modal.hidden .scroll-modal-content {
+    transform: scale(0.9);
+}
+
+.scroll-close-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1.5rem;
+    background: none;
+    border: none;
+    font-size: 2rem;
+    color: #8b5a2b;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.scroll-close-btn:hover {
+    transform: scale(1.1);
+    color: #5c3a1a;
+}
+
+#modal-body h2 {
+    font-family: 'Playfair Display', 'Cinzel', serif;
+    color: #5c3a1a;
+    border-bottom: 2px solid rgba(139, 90, 43, 0.2);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+#modal-body h3 {
+    font-family: 'Playfair Display', serif;
+    color: #8b5a2b;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.rpg-project-card {
+    background: rgba(139, 90, 43, 0.05);
+    border: 1px solid rgba(139, 90, 43, 0.3);
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.rpg-tag {
+    background: rgba(139, 90, 43, 0.15);
+    color: #5c3a1a;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+/* Modal Content Styles */
+.project-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.project-card h3 {
+    margin-bottom: 0.5rem;
+    color: #60a5fa;
+}
+
+.tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+}
+
+.tag {
+    font-size: 0.8rem;
+    background: rgba(96, 165, 250, 0.2);
+    color: #93c5fd;
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+}
+
+.link-btn {
+    display: inline-block;
+    color: white;
+    text-decoration: none;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    margin-right: 0.5rem;
+    border: 1px solid var(--border);
+    transition: background 0.2s;
+}
+
+.link-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.loader {
+    border: 4px solid rgba(139, 90, 43, 0.2);
+    border-top: 4px solid #8b5a2b;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Traditional View now completely refactored via HTML inline styles in the RPG style */

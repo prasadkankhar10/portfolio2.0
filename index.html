@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prasad Kankhar - 3D Portfolio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "fflate": "https://unpkg.com/fflate@0.8.2/esm/index.js",
+                "@dimforge/rapier3d-compat": "https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.12.0/rapier.es.js"
+            }
+        }
+    </script>
+</head>
+<body>
+    <!-- Game Container -->
+    <div id="game-container"></div>
+    
+    <!-- Crosshair -->
+    <div id="crosshair"></div>
+
+    <!-- UI Overlays -->
+    <div id="ui-layer">
+        
+        <!-- HUD Layer (z-index: 10) -->
+        <div id="hud-layer">
+            <div class="hud-top-left">
+                <h2>Prasad Kankhar</h2>
+                <p>Developer &bull; Game Creator &bull; Storyteller</p>
+            </div>
+        </div>
+
+        <!-- Prompt Layer (z-index: 20) -->
+        <div id="prompt-layer">
+            <div id="interaction-prompt" class="hidden">
+                <span class="prompt-key">[ E ]</span> <span id="prompt-text">Action</span>
+            </div>
+        </div>
+
+        <!-- Modal Layer (z-index: 100) -->
+        <div id="modal-layer">
+            
+        <!-- Loading Screen -->
+        <div id="loading-screen" class="scroll-modal visible">
+            <div class="scroll-modal-content" style="text-align: center; max-width: 400px; margin: 0 auto; display: flex; flex-direction: column; align-items: center;">
+                <div class="loader" style="margin-bottom: 1.5rem; border-top-color: #8b5a2b; border-color: rgba(139, 90, 43, 0.2);"></div>
+                <h2 style="border: none; margin-bottom: 0;">Loading Realm...</h2>
+            </div>
+        </div>
+
+        <!-- Start Screen -->
+        <div id="start-screen" class="scroll-modal hidden">
+            <div class="scroll-modal-content" style="text-align: center; max-width: 500px;">
+                <h2 style="font-size: 2.8rem; border: none; margin-bottom: 0;">Prasad Kankhar</h2>
+                <p class="subtitle" style="font-family: 'Playfair Display', serif; color: #8b5a2b; font-size: 1.2rem; margin-bottom: 1rem;">Explore the custom-built 3D island.</p>
+                
+                <div class="rpg-project-card" style="text-align: left; max-width: 300px; margin: 1.5rem auto;">
+                    <p style="margin-bottom: 0.8rem;"><span class="rpg-tag">W</span> <span class="rpg-tag">A</span> <span class="rpg-tag">S</span> <span class="rpg-tag">D</span> to Move</p>
+                    <p style="margin-bottom: 0.8rem;"><span class="rpg-tag">Shift</span> to Run</p>
+                    <p style="margin-bottom: 0.8rem;"><span class="rpg-tag">Mouse</span> to Look Around</p>
+                    <p style="margin-bottom: 0;"><span class="rpg-tag">E</span> to Interact</p>
+                </div>
+                
+                <div style="display: flex; justify-content: center; gap: 1rem; margin-top: 2rem;">
+                    <button id="start-btn" class="rpg-btn" style="font-size: 1.2rem; padding: 1rem 2.5rem;">Enter Realm</button>
+                    <button id="skip-btn" class="rpg-btn" style="background: transparent; color: #8b5a2b; border: 1px dashed rgba(139, 90, 43, 0.4);">Skip Exploration</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pause Screen -->
+        <div id="pause-screen" class="scroll-modal hidden">
+            <div class="scroll-modal-content" style="text-align: center; max-width: 450px;">
+                <h2 style="font-size: 2.5rem; border: none; margin-bottom: 0;">PAUSED</h2>
+                <p class="subtitle" style="font-family: 'Playfair Display', serif; color: #8b5a2b;">Press Escape to resume</p>
+                
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 1rem; margin-top: 2rem;">
+                    <button id="resume-btn" class="rpg-btn" style="width: 100%;">Resume Exploration</button>
+                    <button id="exit-btn" class="rpg-btn" style="background: transparent; color: #8b5a2b; border: 1px dashed rgba(139, 90, 43, 0.4); width: 100%;">Exit to Portfolio</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Content Modal (Dynamic RPG Scroll) -->
+        <div id="content-modal" class="scroll-modal hidden">
+            <div class="scroll-modal-content">
+                <button id="close-modal-btn" class="scroll-close-btn">&times;</button>
+                <div id="modal-body">
+                    <!-- Dynamic content injected here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Closing wrapper for modal-layer -->
+        </div>
+
+        <!-- Traditional Portfolio View (Hidden by default) -->
+        <div id="traditional-view" class="hidden" style="position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 500; overflow-y: auto; pointer-events: auto; background: #f5e6c8; color: #2b2b2b; background-image: url('data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.85\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\' opacity=\'0.05\'/%3E%3C/svg%3E'); padding: 3rem;">
+            <div class="nav-bar" style="border-bottom: 2px solid rgba(139, 90, 43, 0.2); padding-bottom: 1.5rem; margin-bottom: 3rem; display: flex; justify-content: space-between; align-items: center; max-width: 1000px; margin-left: auto; margin-right: auto;">
+                <h2 style="font-family: 'Playfair Display', 'Cinzel', serif; color: #5c3a1a; margin-bottom: 0; border: none;">Prasad Kankhar</h2>
+                <button id="back-to-game-btn" class="rpg-btn">Return to World</button>
+            </div>
+            <div class="trad-content" style="max-width: 1000px; margin: 0 auto;">
+                <section id="trad-projects" style="margin-bottom: 4rem;">
+                    <h3 style="font-family: 'Playfair Display', serif; color: #8b5a2b; font-size: 1.8rem; border-bottom: 1px dashed rgba(139, 90, 43, 0.3); padding-bottom: 0.5rem; margin-bottom: 1.5rem;">The Quest Log</h3>
+                    <div id="trad-projects-container" style="background: rgba(139, 90, 43, 0.05); padding: 2rem; border-radius: 8px; border: 1px solid rgba(139, 90, 43, 0.3);"></div>
+                </section>
+                <section id="trad-skills" style="margin-bottom: 4rem;">
+                    <h3 style="font-family: 'Playfair Display', serif; color: #8b5a2b; font-size: 1.8rem; border-bottom: 1px dashed rgba(139, 90, 43, 0.3); padding-bottom: 0.5rem; margin-bottom: 1.5rem;">Skills & Technology</h3>
+                    <div id="trad-skills-container" style="background: rgba(139, 90, 43, 0.05); padding: 2rem; border-radius: 8px; border: 1px solid rgba(139, 90, 43, 0.3);"></div>
+                </section>
+                <section id="trad-contact" style="margin-bottom: 4rem;">
+                    <h3 style="font-family: 'Playfair Display', serif; color: #8b5a2b; font-size: 1.8rem; border-bottom: 1px dashed rgba(139, 90, 43, 0.3); padding-bottom: 0.5rem; margin-bottom: 1.5rem;">Send a Raven</h3>
+                    <div id="trad-contact-container" style="background: rgba(139, 90, 43, 0.05); padding: 2rem; border-radius: 8px; border: 1px solid rgba(139, 90, 43, 0.3); text-align: center;"></div>
+                </section>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Main Entry Point -->
+    <script type="module" src="main.js"></script>
+</body>
+</html>

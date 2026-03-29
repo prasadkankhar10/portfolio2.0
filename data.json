@@ -1,0 +1,154 @@
+{
+    "profile": {
+        "name": "Prasad Kankhar",
+        "title": "Developer • Game Creator • Storyteller",
+        "welcomeMessage": "Explore the custom-built 3D island."
+    },
+    "spatialPrompts": {
+        "project1": "[E] View Project",
+        "project2": "[E] View Project",
+        "project3": "[E] View Project",
+        "project4": "[E] View Project",
+        "project5": "[E] View Project",
+        "project6": "[E] View Project",
+        "lab": "[E] Inspect Skills",
+        "library": "[E] Read Scroll",
+        "contact": "[E] Send Raven"
+    },
+    "modals": {
+        "project1": {
+            "template": "project",
+            "title": "Project 1",
+            "subtitle": "Your Project Title Here",
+            "items": [
+                {
+                    "title": "Project 1",
+                    "description": "Add your project description here.",
+                    "techStack": ["Tech1", "Tech2", "Tech3"],
+                    "links": [
+                        { "label": "GitHub", "url": "#" },
+                        { "label": "Live Demo", "url": "#" }
+                    ]
+                }
+            ]
+        },
+        "project2": {
+            "template": "project",
+            "title": "Project 2",
+            "subtitle": "Your Project Title Here",
+            "items": [
+                {
+                    "title": "Project 2",
+                    "description": "Add your project description here.",
+                    "techStack": ["Tech1", "Tech2", "Tech3"],
+                    "links": [
+                        { "label": "GitHub", "url": "#" }
+                    ]
+                }
+            ]
+        },
+        "project3": {
+            "template": "project",
+            "title": "Project 3",
+            "subtitle": "Your Project Title Here",
+            "items": [
+                {
+                    "title": "Project 3",
+                    "description": "Add your project description here.",
+                    "techStack": ["Tech1", "Tech2", "Tech3"],
+                    "links": [
+                        { "label": "GitHub", "url": "#" }
+                    ]
+                }
+            ]
+        },
+        "project4": {
+            "template": "project",
+            "title": "Project 4",
+            "subtitle": "Your Project Title Here",
+            "items": [
+                {
+                    "title": "Project 4",
+                    "description": "Add your project description here.",
+                    "techStack": ["Tech1", "Tech2", "Tech3"],
+                    "links": [
+                        { "label": "GitHub", "url": "#" }
+                    ]
+                }
+            ]
+        },
+        "project5": {
+            "template": "project",
+            "title": "Project 5",
+            "subtitle": "Your Project Title Here",
+            "items": [
+                {
+                    "title": "Project 5",
+                    "description": "Add your project description here.",
+                    "techStack": ["Tech1", "Tech2", "Tech3"],
+                    "links": [
+                        { "label": "GitHub", "url": "#" }
+                    ]
+                }
+            ]
+        },
+        "project6": {
+            "template": "project",
+            "title": "Project 6",
+            "subtitle": "Your Project Title Here",
+            "items": [
+                {
+                    "title": "Project 6",
+                    "description": "Add your project description here.",
+                    "techStack": ["Tech1", "Tech2", "Tech3"],
+                    "links": [
+                        { "label": "GitHub", "url": "#" }
+                    ]
+                }
+            ]
+        },
+        "lab": {
+            "template": "skills",
+            "title": "The Alchemist's Lab",
+            "subtitle": "Skills & Spells",
+            "items": [
+                {
+                    "title": "Programming",
+                    "skills": ["JavaScript (ES6+)", "C++", "Python", "HTML5/CSS3"]
+                },
+                {
+                    "title": "Game Dev",
+                    "skills": ["Unreal Engine 5", "Unity", "Three.js", "Canvas API"]
+                },
+                {
+                    "title": "Web Dev",
+                    "skills": ["React", "Node.js", "Express", "MongoDB"]
+                },
+                {
+                    "title": "Emerging Tech",
+                    "skills": ["AI Systems Integration", "Prompt Engineering"]
+                }
+            ]
+        },
+        "library": {
+            "template": "library",
+            "title": "The Grand Library",
+            "subtitle": "Creative Writing & Shayari",
+            "items": [
+                "In the lines of code I find my logic, <br>In the lines of poetry I find my soul.",
+                "A bug is just a story waiting to be understood."
+            ]
+        },
+        "contact": {
+            "template": "contact",
+            "title": "The Dock",
+            "subtitle": "Send a Raven",
+            "links": [
+                { "label": "GitHub", "url": "https://github.com" },
+                { "label": "LinkedIn", "url": "https://linkedin.com" },
+                { "label": "Email Me", "url": "mailto:hello@example.com" },
+                { "label": "Download Resume", "url": "#" }
+            ]
+        }
+    }
+}

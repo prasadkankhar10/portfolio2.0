@@ -84,3 +84,69 @@ export function updateParticles(delta) {
 
     particleMesh.instanceMatrix.needsUpdate = true;
 }
+
+// ─── Firefly Swarms ───────────────────────────────────────────────────────────
+const SWARM_COUNT = 80;
+let swarmMesh = null;
+const swarmData = [];
+
+// 5 anchor positions near tree/dark areas — adjust XZ after testing!
+const SWARM_ANCHORS = [
+    { x: -20, y: 3, z: -10 },
+    { x:  15, y: 3, z:  20 },
+    { x: -10, y: 3, z:  25 },
+    { x:  25, y: 3, z: -15 },
+    { x:   0, y: 3, z:  15 },
+];
+
+export function setupFireflySwarms(scene) {
+    const geometry = new THREE.TetrahedronGeometry(0.05, 0);
+    const material = new THREE.MeshBasicMaterial({
+        color: 0xaaff66, // Warm green-yellow firefly tint
+        transparent: true,
+        opacity: 0.9,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+    });
+
+    swarmMesh = new THREE.InstancedMesh(geometry, material, SWARM_COUNT);
+    swarmMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+
+    for (let i = 0; i < SWARM_COUNT; i++) {
+        const anchor = SWARM_ANCHORS[i % SWARM_ANCHORS.length];
+        swarmData.push({
+            ax: anchor.x + (Math.random() - 0.5) * 6,
+            ay: anchor.y + Math.random() * 3,
+            az: anchor.z + (Math.random() - 0.5) * 6,
+            px: anchor.x, py: anchor.y, pz: anchor.z,
+            phaseX: Math.random() * Math.PI * 2,
+            phaseY: Math.random() * Math.PI * 2,
+            phaseZ: Math.random() * Math.PI * 2,
+            speed: 0.6 + Math.random() * 0.8,
+        });
+    }
+
+    scene.add(swarmMesh);
+}
+
+export function updateFireflySwarms(delta, time) {
+    if (!swarmMesh) return;
+
+    for (let i = 0; i < SWARM_COUNT; i++) {
+        const d = swarmData[i];
+        d.px += Math.sin(time * d.speed + d.phaseX) * 0.015;
+        d.py  = d.ay + Math.sin(time * 1.2 + d.phaseY) * 0.6;
+        d.pz += Math.cos(time * d.speed + d.phaseZ) * 0.015;
+
+        // Pull back to anchor if drifted > 4m
+        const dx = d.ax - d.px;
+        const dz = d.az - d.pz;
+        d.px += dx * 0.005;
+        d.pz += dz * 0.005;
+
+        dummy.position.set(d.px, d.py, d.pz);
+        dummy.updateMatrix();
+        swarmMesh.setMatrixAt(i, dummy.matrix);
+    }
+    swarmMesh.instanceMatrix.needsUpdate = true;
+}

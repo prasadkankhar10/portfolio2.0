@@ -11,7 +11,13 @@ import { createCharacter } from './character/characterController.js';
 import { setupControls, updateMovement, isSpectatorMode } from './character/movement.js';
 import { setupClouds, updateClouds } from './world/clouds.js';
 import { setupBirds, updateBirds } from './world/birds.js';
-import { setupParticles, updateParticles } from './world/particles.js';
+import { setupParticles, updateParticles, setupFireflySwarms, updateFireflySwarms } from './world/particles.js';
+import { setupFish, updateFish } from './world/fish.js';
+import { setupCompanion, updateCompanion } from './world/companion.js';
+import { setupStars, updateStars } from './world/stars.js';
+import { setupGodRays, updateGodRays } from './world/godRays.js';
+import { initSoundscape, updateSoundscape, toggleMute } from './world/soundscape.js';
+import { setupOrbs, updateOrbs } from './world/orbs.js';
 import { setupInteraction, updateInteraction } from './interaction/interactionManager.js';
 import { initUIController, getModalState, openModal } from './ui/uiController.js';
 import { populateTraditionalView } from './ui/portfolioSections.js';
@@ -22,6 +28,8 @@ let waterMesh;
 let waterNormals;
 let windowMeshes = [];
 let windowLights = [];
+let stallLights = [];     // Campfire lights near market stalls
+let playerTorchLight;     // Personal lantern that follows the player
 let isExploring = false;
 let isPaused = false;
 let spawnX = -9.998;
@@ -31,6 +39,26 @@ let spawnY = 20;
 const clock = new THREE.Clock();
 
 async function init() {
+    // 0. Fetch External Configuration Data First
+    try {
+        const response = await fetch('./data.json');
+        window.portfolioData = await response.json();
+        
+        // Dynamically Inject Profile texts to HTML immediately
+        const pd = window.portfolioData.profile;
+        document.getElementById('hud-name').innerHTML = pd.name;
+        document.getElementById('hud-title').innerHTML = pd.title.replace(/•/g, '&bull;');
+        document.getElementById('start-name').innerHTML = pd.name;
+        document.getElementById('start-message').innerHTML = pd.welcomeMessage;
+        
+        const tradName = document.getElementById('trad-name');
+        if (tradName) tradName.innerHTML = pd.name;
+        
+    } catch (e) {
+        console.error("Critical Start Error: Failed to load data.json", e);
+        window.portfolioData = { profile: {}, spatialPrompts: {}, modals: {} };
+    }
+    
     // 1. Core Setup
     scene    = createScene();
     renderer = createRenderer();
@@ -52,10 +80,16 @@ async function init() {
     composer.addPass(smaaPass);
 
     handleResize(camera, renderer, composer);
-    setupLighting(scene);
-    setupClouds(scene); // Spawn our low-poly procedural clouds!
-    setupBirds(scene);  // Spawn the procedural flock of birds!
-    setupParticles(scene); // Spawn ambient glowing particles (fireflies)
+    setupLighting(scene, renderer); // Pass renderer so lighting can control tone mapping
+    setupClouds(scene);
+    setupBirds(scene);
+    setupParticles(scene);
+    setupFireflySwarms(scene); // Dense swarms near tree anchors
+    setupCompanion(scene);
+    setupStars(scene);         // Procedural star field
+    setupGodRays(scene);       // Sun halo billboard
+    setupOrbs(scene);          // Collectible golden orbs
+    initSoundscape();          // Start Web Audio synthesizer
 
     // 2. Init Rapier WASM (must await before creating physics objects)
     await initPhysics();
@@ -95,8 +129,8 @@ async function init() {
                     
                     child.material = new THREE.MeshStandardMaterial({
                         color: 0x4a6eb0, // Matched reference picture deep blue
-                        roughness: 0.1, // Back to smooth because local ripples will now diffuse the reflection naturally!
-                        metalness: 0.6, // Excellent reflection multiplier
+                        roughness: 0.35, // Softer highlight to avoid square bloom artifacts
+                        metalness: 0.15, // Significantly diffuse specular intensity
                         normalMap: waterNormals,
                         normalScale: new THREE.Vector2(0.8, 0.8), // Ripples strength (0 to 1)
                         transparent: false,
@@ -144,7 +178,7 @@ async function init() {
                                 }
                             }
                             
-                            if (!isNear && windowLights.length < 20) { 
+                            if (!isNear && windowLights.length < 12) { 
                                 // Ambient PointLight pulled slightly away from the house to emulate a glowing streetlamp or porch lantern!
                                 const pLight = new THREE.PointLight(0xffb732, 0, 45, 2.0); // 45m radius, smooth quadratic decay
                                 
@@ -190,18 +224,36 @@ async function init() {
             }
         });
 
-        // Centre island at world origin, sit base on Y=0
+        // Centre island at world origin
         const box    = new THREE.Box3().setFromObject(island);
         const center = new THREE.Vector3();
         box.getCenter(center);
         island.position.x = -center.x;
         island.position.z = -center.z;
         island.position.y = -box.min.y;
-
-        // Apply the transform so matrixWorld is correct before trimesh extraction
         island.updateMatrixWorld(true);
-
         scene.add(island);
+
+        // ── Campfire/Torch Lights at stall positions ──────────────────────
+        // Placed approximately where your 6 market stalls are
+        const stallPositions = [
+            { x: -18, z: -10 },
+            { x: -14, z: -10 },
+            { x: -10, z: -10 },
+            { x: -18, z: -6  },
+            { x: -14, z: -6  },
+            { x: -10, z: -6  },
+        ];
+        stallPositions.forEach(pos => {
+            const light = new THREE.PointLight(0xff7722, 0, 12, 2.0);
+            light.position.set(pos.x, 2.5, pos.z); // 2.5m high — just above table level
+            scene.add(light);
+            stallLights.push(light);
+        });
+
+        // ── Player personal torch light ────────────────────────────────────
+        playerTorchLight = new THREE.PointLight(0xffcc66, 0, 8, 2.2);
+        scene.add(playerTorchLight);
 
         const size = new THREE.Vector3();
         box.getSize(size);
@@ -209,6 +261,13 @@ async function init() {
 
         // Build Rapier trimesh collider from all island meshes
         createIslandCollider(island);
+        
+        // Spawn Koi Fish accurately around the true sea level AFTER the island loads
+        if (waterMesh) {
+            const waterPos = new THREE.Vector3();
+            waterMesh.getWorldPosition(waterPos);
+            setupFish(scene, waterPos.y); 
+        }
 
         // Spawn player above the provided coordinates so they fall onto the surface
         spawnY = box.max.y + 2; // Drop gently from just above the tallest obstacle
@@ -223,14 +282,20 @@ async function init() {
         // UI & Interaction Setup
         const interactables = {};
         
-        // Link the Market Stall to the "Projects" interaction
-        const stall = island.getObjectByName('stall2002_0');
-        if (stall) {
-            interactables['arcade'] = stall;
-        } else {
-            console.warn("⚠️ Interaction Setup: Could not find object named 'stall2002_0' in the island!");
+        // Auto-register every mesh that has a trigger with a meshName defined
+        const { triggers: triggerList } = await import('./interaction/triggers.js');
+        for (const trigger of triggerList) {
+            if (trigger.meshName) {
+                const found = island.getObjectByName(trigger.meshName);
+                if (found) {
+                    interactables[trigger.id] = found;
+                    console.log(`✅ Registered interactable '${trigger.id}' → mesh '${trigger.meshName}'`);
+                } else {
+                    console.warn(`⚠️ Could not find mesh '${trigger.meshName}' for trigger '${trigger.id}'`);
+                }
+            }
         }
-
+        
         setupInteraction(interactables);
 
     }, undefined, (error) => {
@@ -341,17 +406,33 @@ async function init() {
     }, 500);
 
     animate();
+
+    // M key = toggle sound mute from anywhere in the game
+    window.addEventListener('keydown', (e) => {
+        if (e.key.toLowerCase() === 'm') {
+            const muted = toggleMute();
+            const muteBtn = document.getElementById('mute-btn');
+            if (muteBtn) {
+                muteBtn.innerHTML = muted ? '\uD83D\uDD07 [M]' : '\uD83D\uDD0A [M]';
+                muteBtn.style.borderColor = muted ? 'rgba(255,80,80,0.6)' : 'rgba(255,215,0,0.4)';
+                muteBtn.style.color = muted ? '#ff6666' : '#ffd700';
+            }
+        }
+    });
 }
 
 function animate() {
     requestAnimationFrame(animate);
-    const delta = Math.min(clock.getDelta(), 0.1); 
+    const delta = Math.min(clock.getDelta(), 0.1);
+    const totalTime = clock.getElapsedTime();
 
     // Only update gameplay loops if not paused and completely exploring
     if (playerData && isExploring && !isPaused && !getModalState()) {
         updateMovement(playerData, camera, delta);
-        updateInteraction(playerData.mesh.position);
-        
+        // Interactions
+        if (playerData && playerData.mesh) {
+            updateInteraction(playerData.mesh.position, camera);
+        }    
         // Advance physics
         if (typeof window.rapierWorld !== 'undefined') {
             window.rapierWorld.step();
@@ -394,31 +475,87 @@ function animate() {
     const time = getTimeOfDay();
     let nightStrength = 0;
     if (time >= 19 || time <= 5) {
-        nightStrength = 1.0;       // Full night
+        nightStrength = 1.0;
     } else if (time > 18 && time < 19) {
-        nightStrength = time - 18; // Fade in during dusk
+        nightStrength = time - 18;
     } else if (time > 5 && time < 6) {
-        nightStrength = 1.0 - (time - 5); // Fade out during dawn
+        nightStrength = 1.0 - (time - 5);
     }
     
     if (windowMeshes && windowMeshes.length > 0) {
         for (let w of windowMeshes) {
-            if (w.material) {
-                w.material.emissiveIntensity = nightStrength * 3.5; // High multiplier pierces the 0.85 HDR Bloom Threshold!
-            }
+            if (w.material) w.material.emissiveIntensity = nightStrength * 3.5;
         }
     }
     if (windowLights && windowLights.length > 0) {
         for (let light of windowLights) {
-            light.intensity = nightStrength * 150.0; // Soft warm fill light simulating local ambient lanterns
+            light.intensity = nightStrength * 150.0;
         }
     }
 
-    // Always update visual elements so they drift gently even if paused or on menus
+    // Campfire lights — warm flicker tied to nightStrength
+    const baseStallIntensity = nightStrength * 60;
+    for (let sl of stallLights) {
+        sl.intensity = baseStallIntensity + (Math.random() - 0.5) * baseStallIntensity * 0.3;
+    }
+
+    // Player torch light — follows player, stronger at night
+    if (playerTorchLight && playerData && playerData.mesh) {
+        playerTorchLight.position.copy(playerData.mesh.position);
+        playerTorchLight.position.y += 1.2; // Chest height
+        const torchTarget = nightStrength * 20;
+        playerTorchLight.intensity += (torchTarget - playerTorchLight.intensity) * 0.05;
+    }
+
+    // Shadow Flicker — subtle ±2% jitter on the sun's intensity
+    if (window._dirLight) {
+        window._dirLight.intensity += (Math.random() - 0.5) * 0.04;
+    }
+
+    // Star field & God Rays
+    updateStars(totalTime, nightStrength);
+    updateGodRays(time);
+    updateSoundscape(nightStrength);
+
+    // Compass HUD
+    if (!window._compassNeedle) window._compassNeedle = document.getElementById('compass-needle');
+    const compassNeedle = window._compassNeedle;
+    if (compassNeedle && camera) {
+        const dir = new THREE.Vector3();
+        camera.getWorldDirection(dir);
+        const angle = Math.atan2(dir.x, dir.z) * (180 / Math.PI);
+        const child = compassNeedle.firstElementChild;
+        if (child) child.style.transform = `rotate(${angle}deg)`;
+    }
+
+    // Time of Day Badge (update max once/sec)
+    if (!window._timeBadge) window._timeBadge = document.getElementById('time-icon');
+    if (!window._timeLabel) window._timeLabel = document.getElementById('time-label');
+    const timeBadge = window._timeBadge;
+    const timeLabel = window._timeLabel;
+    if (timeBadge && timeLabel) {
+        let icon = '\u2600\ufe0f', label = 'Day';
+        if (time >= 19 || time < 5)   { icon = '\uD83C\uDF19'; label = 'Night'; }
+        else if (time >= 5 && time < 7)  { icon = '\uD83C\uDF05'; label = 'Dawn'; }
+        else if (time >= 17 && time < 19) { icon = '\uD83C\uDF06'; label = 'Dusk'; }
+        timeBadge.textContent = icon;
+        timeLabel.textContent = label;
+    }
+
+    // Always update visual elements
     updateClouds(delta);
-    updateBirds(delta); // Flap and steer procedural birds
-    updateParticles(delta); // Animate fireflies
-    updateLighting(delta); // Advance the Day/Night cycle smooth transition
+    updateBirds(delta);
+    updateParticles(delta);
+    updateFireflySwarms(delta, totalTime);
+    updateLighting(delta);
+
+    if (playerData && playerData.mesh) {
+        updateFish(delta, playerData.mesh.position, totalTime);
+        updateCompanion(delta, playerData.mesh, totalTime, nightStrength);
+        updateOrbs(delta, playerData.mesh.position, totalTime);
+    } else {
+        updateFish(delta, null, totalTime);
+    }
 
     composer.render();
 }

@@ -18,7 +18,7 @@ export function createRenderer() {
     const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false }); // Antialias off for post-processing performance if using composer
     
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // optimize performance
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25)); // optimize performance
     
     // Enable shadows
     renderer.shadowMap.enabled = true;

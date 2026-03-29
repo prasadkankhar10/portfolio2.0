@@ -1,4 +1,6 @@
-import { sectionsData } from './portfolioSections.js';
+import { getSectionsData } from './portfolioSections.js';
+import { playChime } from '../world/soundscape.js';
+
 
 // Central State
 let isModalOpen = false;
@@ -41,6 +43,9 @@ export function showPrompt(text) {
     promptLayer.classList.remove('hidden');
     promptLayer.classList.add('visible');
     isPromptVisible = true;
+    
+    // Play interaction chime
+    try { playChime(); } catch(e) {}
 }
 
 export function hidePrompt() {
@@ -67,15 +72,28 @@ export function openModal(id, rawHTML = null) {
         return;
     }
 
-    const data = sectionsData[id];
+    const data = getSectionsData()[id];
     if (!data || !modal) return;
 
     isModalOpen = true;
     hidePrompt(); // Hide prompt immediately
 
+    // Track discovery journal
+    try {
+        const discovered = JSON.parse(localStorage.getItem('discovered_projects') || '[]');
+        if (!discovered.includes(id)) {
+            discovered.push(id);
+            localStorage.setItem('discovered_projects', JSON.stringify(discovered));
+        }
+        // Count only project IDs
+        const projectIds = Object.keys(getSectionsData()).filter(k => k.startsWith('project'));
+        const count = discovered.filter(d => projectIds.includes(d)).length;
+        const el = document.getElementById('journal-counter');
+        if (el) el.textContent = `\uD83D\uDCD6 ${count} / ${projectIds.length} Discovered`;
+    } catch(e) {}
+
     // Build pure semantic HTML from structured JSON
     modalBody.innerHTML = buildTemplateHTML(data);
-
     modal.classList.remove('hidden');
 }
 
@@ -98,6 +116,24 @@ export function closeModal(callback) {
     }
     
     if (callback) callback();
+}
+
+// ─── Toast Notification ──────────────────────────────────────────────────────
+let _toastTimer = null;
+export function showToast(title, message, duration = 3000) {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+
+    document.getElementById('toast-title').textContent = title;
+    document.getElementById('toast-msg').textContent = message;
+
+    // Clear any running timer
+    if (_toastTimer) clearTimeout(_toastTimer);
+
+    toast.classList.add('show');
+    _toastTimer = setTimeout(() => {
+        toast.classList.remove('show');
+    }, duration);
 }
 
 /**

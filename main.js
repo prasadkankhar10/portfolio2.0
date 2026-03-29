@@ -89,20 +89,25 @@ async function init() {
     setupStars(scene);         // Procedural star field
     setupGodRays(scene);       // Sun halo billboard
     setupOrbs(scene);          // Collectible golden orbs
-    initSoundscape();          // Start Web Audio synthesizer
 
-    // 2. Init Rapier WASM (must await before creating physics objects)
-    await initPhysics();
-    
-    // 3. Load Ocean Textures
+    // 2. Parallel Asset Loading (HUGE Performance Boost!)
+    // Fire off all massive downloads at the exact same time instead of sequentially
     const textureLoader = new THREE.TextureLoader();
-    waterNormals = textureLoader.load('./assets/water_normal.jpg');
-    waterNormals.wrapS = waterNormals.wrapT = THREE.RepeatWrapping;
-    waterNormals.repeat.set(60, 60); // Tile the ripples so they aren't enormous!
-
-    // 4. Load island GLB
     const gltfLoader = new GLTFLoader();
-    gltfLoader.load('./assets/working_portfolio11.glb', async (gltf) => {
+
+    try {
+        const [_, loadedWaterNormals, gltf] = await Promise.all([
+            initPhysics(), // Downloads Rapier WASM
+            textureLoader.loadAsync('./assets/water_normal.jpg'),
+            gltfLoader.loadAsync('./assets/working_portfolio11.glb')
+        ]);
+
+        // 3. Process loaded ocean textures
+        waterNormals = loadedWaterNormals;
+        waterNormals.wrapS = waterNormals.wrapT = THREE.RepeatWrapping;
+        waterNormals.repeat.set(60, 60); // Tile the ripples so they aren't enormous!
+
+        // 4. Process loaded island GLB
         const island = gltf.scene;
 
         // Enable shadows and tune materials for a vibrant, premium look
@@ -304,9 +309,9 @@ async function init() {
         document.getElementById('start-screen').classList.remove('hidden');
         document.getElementById('start-screen').classList.add('visible');
 
-    }, undefined, (error) => {
-        console.error('Error loading island GLB:', error);
-    });
+    } catch (error) {
+        console.error('Critical Error loading game assets sequentially:', error);
+    }
 
     // 4. UI Setup
     populateTraditionalView();
@@ -323,6 +328,7 @@ async function init() {
     const traditionalView = document.getElementById('traditional-view');
 
     startBtn.addEventListener('click', () => {
+        initSoundscape(); // ✅ AudioContext starts legally upon explicit User Click!
         startScreen.classList.remove('visible');
         startScreen.classList.add('hidden');
         isExploring = true;

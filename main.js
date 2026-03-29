@@ -298,6 +298,12 @@ async function init() {
         
         setupInteraction(interactables);
 
+        // Hide loading screen ONLY after the island has fully loaded and physics are built
+        document.getElementById('loading-screen').classList.remove('visible');
+        document.getElementById('loading-screen').classList.add('hidden');
+        document.getElementById('start-screen').classList.remove('hidden');
+        document.getElementById('start-screen').classList.add('visible');
+
     }, undefined, (error) => {
         console.error('Error loading island GLB:', error);
     });
@@ -397,13 +403,8 @@ async function init() {
         });
     }
 
-    // 6. Show start screen
-    setTimeout(() => {
-        document.getElementById('loading-screen').classList.remove('visible');
-        document.getElementById('loading-screen').classList.add('hidden');
-        document.getElementById('start-screen').classList.remove('hidden');
-        document.getElementById('start-screen').classList.add('visible');
-    }, 500);
+    // Retained UI listeners
+
 
     animate();
 

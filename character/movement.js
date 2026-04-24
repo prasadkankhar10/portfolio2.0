@@ -50,7 +50,6 @@ let idleSwyTime = 0;
 let verticalVelocity = 0;
 let coyoteTimer      = 0;
 let jumpBufferTimer  = 0;
-let doubleJumpAvail  = false;  // Double jump
 let wasGrounded      = true;
 
 // ─── Momentum System ────────────────────────────────────────────────────────
@@ -75,7 +74,6 @@ const RUN_SPEED    = 3.0;
 const CROUCH_SPEED = 0.6;
 const GRAVITY      = -20.0;
 const JUMP_VELOCITY = 3.5;
-const DOUBLE_JUMP_VEL = 2.5;
 
 // ─── Setup ──────────────────────────────────────────────────────────────────
 export function setupControls(camera, renderer) {
@@ -257,7 +255,6 @@ function _updatePlayer(characterData, camera, delta) {
 
     if (grounded && verticalVelocity <= 0) {
         coyoteTimer   = 0.15;
-        doubleJumpAvail = true;
     } else {
         coyoteTimer -= delta;
     }
@@ -273,12 +270,6 @@ function _updatePlayer(characterData, camera, delta) {
         verticalVelocity = JUMP_VELOCITY;
         coyoteTimer      = 0;
         jumpBufferTimer  = 0;
-    }
-    // Double jump
-    else if (jumpBufferTimer > 0 && !grounded && doubleJumpAvail) {
-        verticalVelocity  = DOUBLE_JUMP_VEL;
-        doubleJumpAvail   = false;
-        jumpBufferTimer   = 0;
     }
 
     const moveY = verticalVelocity * delta;

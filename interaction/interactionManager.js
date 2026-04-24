@@ -76,6 +76,10 @@ export function setupInteraction(interactables) {
     });
 }
 
+export function getActiveTriggerId() {
+    return currentActiveTrigger ? currentActiveTrigger.id : null;
+}
+
 export function getCinematicTarget() {
     if (currentActiveTrigger && interactablesDict[currentActiveTrigger.id]) {
         const mesh = interactablesDict[currentActiveTrigger.id];

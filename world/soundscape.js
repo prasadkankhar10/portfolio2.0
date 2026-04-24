@@ -76,6 +76,32 @@ export function playChime() {
     });
 }
 
+// ─── Notification / Toast Sound ────────────────────────────────────────────────
+export function playNotification() {
+    if (!audioCtx) return;
+
+    const now = audioCtx.currentTime;
+    
+    // Quick two-tone positive bubble chime (E5 -> A5)
+    const freqs = [659.25, 880.00]; 
+    freqs.forEach((f, i) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(f, now + i * 0.1); // 0.1s stagger
+
+        gain.gain.setValueAtTime(0, now + i * 0.1);
+        gain.gain.linearRampToValueAtTime(0.15, now + i * 0.1 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.4);
+
+        osc.connect(gain);
+        gain.connect(masterGain);
+        osc.start(now + i * 0.1);
+        osc.stop(now + i * 0.1 + 0.45);
+    });
+}
+
 // ─── Orb Collect Sound ───────────────────────────────────────────────────────
 export function playOrbCollect() {
     if (!audioCtx) return;

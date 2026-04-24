@@ -53,10 +53,10 @@ export function setupParticles(scene) {
     console.log(`✅ Emitted ${PARTICLE_COUNT} ambient particles`);
 }
 
-export function updateParticles(delta) {
+export function updateParticles(delta, totalTime) {
     if (!particleMesh) return;
 
-    const time = Date.now() * 0.001; // Global time for organic sine waves
+    const time = totalTime; // Use clock time passed from main.js — avoids Date.now() system call per frame
 
     for (let i = 0; i < PARTICLE_COUNT; i++) {
         const data = particleData[i];

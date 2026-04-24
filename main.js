@@ -22,6 +22,7 @@ import { setupInteraction, updateInteraction } from './interaction/interactionMa
 import { initUIController, getModalState, openModal } from './ui/uiController.js';
 import { populateTraditionalView } from './ui/portfolioSections.js';
 import { initPhysics, createIslandCollider, createPlayerController, createSpectatorController, setPlayerPosition } from './physics/physics.js';
+import { setupNPCs, updateNPCs } from './world/npcs.js';
 
 let scene, camera, renderer, composer, playerData;
 let waterMesh;
@@ -41,8 +42,13 @@ const clock = new THREE.Clock();
 async function init() {
     // 0. Fetch External Configuration Data First
     try {
-        const response = await fetch('./data.json');
-        window.portfolioData = await response.json();
+        const [portfolioResp, naviResp] = await Promise.all([
+            fetch('./data.json'),
+            fetch('./navi.json')
+        ]);
+        
+        window.portfolioData = await portfolioResp.json();
+        window.naviData = await naviResp.json();
         
         // Dynamically Inject Profile texts to HTML immediately
         const pd = window.portfolioData.profile;
@@ -55,8 +61,9 @@ async function init() {
         if (tradName) tradName.innerHTML = pd.name;
         
     } catch (e) {
-        console.error("Critical Start Error: Failed to load data.json", e);
+        console.error("Critical Start Error: Failed to load configuration files", e);
         window.portfolioData = { profile: {}, spatialPrompts: {}, modals: {} };
+        window.naviData = {};
     }
     
     // 1. Core Setup
@@ -249,9 +256,12 @@ async function init() {
             { x: -14, z: -6  },
             { x: -10, z: -6  },
         ];
-        stallPositions.forEach(pos => {
+        stallPositions.forEach((pos, idx) => {
             const light = new THREE.PointLight(0xff7722, 0, 12, 2.0);
-            light.position.set(pos.x, 2.5, pos.z); // 2.5m high — just above table level
+            light.position.set(pos.x, 2.5, pos.z);
+            // Pre-seed a unique flicker rate so we never need Math.random() per frame
+            light.userData.flickerRate  = 3.5 + idx * 1.3;   // unique Hz per stall
+            light.userData.flickerPhase = idx * 1.1;          // unique phase offset
             scene.add(light);
             stallLights.push(light);
         });
@@ -275,7 +285,7 @@ async function init() {
         }
 
         // Spawn player above the provided coordinates so they fall onto the surface
-        spawnY = box.max.y + 2; // Drop gently from just above the tallest obstacle
+        spawnY = box.max.y + 2;
         
         createPlayerController(spawnX, spawnY, spawnZ);
         createSpectatorController(spawnX, spawnY, spawnZ);
@@ -283,6 +293,9 @@ async function init() {
         // Load 3D model and create state object
         playerData = createCharacter(scene);
         setupControls(camera, renderer);
+
+        // Spawn NPCs after island so they share the same world space
+        setupNPCs(scene);
 
         // UI & Interaction Setup
         const interactables = {};
@@ -500,10 +513,18 @@ function animate() {
         }
     }
 
-    // Campfire lights — warm flicker tied to nightStrength
+    // Campfire lights — warm sine-based flicker (no Math.random() per frame!)
     const baseStallIntensity = nightStrength * 60;
     for (let sl of stallLights) {
-        sl.intensity = baseStallIntensity + (Math.random() - 0.5) * baseStallIntensity * 0.3;
+        const flicker = Math.sin(totalTime * sl.userData.flickerRate + sl.userData.flickerPhase) * 0.15;
+        sl.intensity = baseStallIntensity * (1 + flicker);
+    }
+
+    // Shadow Flicker — subtle smooth jitter on sun intensity (no Math.random!)
+    if (window._dirLight) {
+        window._dirLight.intensity = window._dirLight.userData.baseIntensity
+            ? window._dirLight.userData.baseIntensity * (1 + Math.sin(totalTime * 7.3) * 0.015)
+            : window._dirLight.intensity;
     }
 
     // Player torch light — follows player, stronger at night
@@ -514,10 +535,7 @@ function animate() {
         playerTorchLight.intensity += (torchTarget - playerTorchLight.intensity) * 0.05;
     }
 
-    // Shadow Flicker — subtle ±2% jitter on the sun's intensity
-    if (window._dirLight) {
-        window._dirLight.intensity += (Math.random() - 0.5) * 0.04;
-    }
+
 
     // Star field & God Rays
     updateStars(totalTime, nightStrength);
@@ -552,9 +570,10 @@ function animate() {
     // Always update visual elements
     updateClouds(delta);
     updateBirds(delta);
-    updateParticles(delta);
+    updateParticles(delta, totalTime);
     updateFireflySwarms(delta, totalTime);
     updateLighting(delta);
+    updateNPCs(delta, totalTime);
 
     if (playerData && playerData.mesh) {
         updateFish(delta, playerData.mesh.position, totalTime);

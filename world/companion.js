@@ -1,8 +1,18 @@
 import * as THREE from 'three';
+import { showToast } from '../ui/uiController.js';
+import { getActiveTriggerId } from '../interaction/interactionManager.js';
 
 let companionGroup;
 let coreMesh;
 let pointLight;
+
+let messageTimer = 15.0; // Show first message after 15 seconds
+let playerPrevPos = new THREE.Vector3();
+let idleTimer = 0;
+let sprintTimer = 0;
+let lastProjectSpoken = null; // Track so we don't repeat the same project back to back
+
+
 
 export function setupCompanion(scene) {
     companionGroup = new THREE.Group();
@@ -83,4 +93,62 @@ export function updateCompanion(delta, playerMesh, time, nightStrength = 1.0) {
     // Pulse the light intensity seamlessly and gently
     pointLight.intensity = 8.0 + Math.sin(time * 5.0) * 2.5;
     coreMesh.scale.setScalar(1.0 + Math.sin(time * 5.0) * 0.1);
+
+    // 4. Context & Insight Tracking
+    const speed = playerPos.distanceTo(playerPrevPos) / delta;
+    playerPrevPos.copy(playerPos);
+
+    if (speed < 0.1) {
+        idleTimer += delta;
+        sprintTimer = 0;
+    } else if (speed > 2.8) {
+        sprintTimer += delta;
+        idleTimer = 0;
+    } else {
+        idleTimer = 0;
+        sprintTimer = 0;
+    }
+
+    // 5. Context-Aware Dialogue Injection
+    const db = window.naviData;
+    if (!db) return; // No data yet
+
+    // Override: Did we just walk into a new project zone?
+    const currentTrigger = getActiveTriggerId();
+    if (currentTrigger && currentTrigger !== lastProjectSpoken) {
+        lastProjectSpoken = currentTrigger;
+        if (db.context_project && db.context_project[currentTrigger]) {
+            showToast('🧚 Navi says...', db.context_project[currentTrigger], 8000);
+            messageTimer = 45.0; // Push back the general timer so she doesn't double-speak
+            return;
+        }
+    }
+    // Clear the memory if they walk away, allowing them to re-trigger it later
+    if (!currentTrigger && lastProjectSpoken) {
+        lastProjectSpoken = null;
+    }
+
+    // 6. standard Timer-based Dialogue (Moods and States)
+    messageTimer -= delta;
+    if (messageTimer <= 0) {
+        messageTimer = 45.0 + Math.random() * 45.0; // Reset to 45-90s
+        
+        let dialoguePool = [];
+        
+        if (idleTimer > 10.0) {
+            dialoguePool = db.context_idle || [];
+            idleTimer = 0; // Reset so she doesn't spam idle messages
+        } else if (sprintTimer > 3.0) {
+            dialoguePool = db.context_sprint || [];
+            sprintTimer = 0;
+        } else {
+            // Mood System based on Time of Day
+            dialoguePool = (nightStrength > 0.5) ? (db.night_lore || []) : (db.day_tech || []);
+        }
+
+        if (dialoguePool.length > 0) {
+            const randomMsg = dialoguePool[Math.floor(Math.random() * dialoguePool.length)];
+            showToast('🧚 Navi says...', randomMsg, 8000);
+        }
+    }
 }

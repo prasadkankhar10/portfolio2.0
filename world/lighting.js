@@ -44,8 +44,8 @@ export function setupLighting(scene, renderer) {
     sunLight = new THREE.DirectionalLight(0xffd1a4, 3.5);
     sunLight.position.set(80, 40, -50);
     sunLight.castShadow = true;
-    sunLight.shadow.mapSize.width  = 1024;
-    sunLight.shadow.mapSize.height = 1024;
+    sunLight.shadow.mapSize.width  = 2048;
+    sunLight.shadow.mapSize.height = 2048;
     sunLight.shadow.camera.near = 0.5;
     sunLight.shadow.camera.far  = 300;
     const d = 80;
@@ -53,8 +53,8 @@ export function setupLighting(scene, renderer) {
     sunLight.shadow.camera.right  =  d;
     sunLight.shadow.camera.top    =  d;
     sunLight.shadow.camera.bottom = -d;
-    sunLight.shadow.bias       = -0.0005;
-    sunLight.shadow.normalBias =  0.02;
+    sunLight.shadow.bias       = -0.001;     // Pushes shadow deeper
+    sunLight.shadow.normalBias =  0.08;      // Fixes low-poly terrain acne
     scene.add(sunLight);
     window._dirLight = sunLight; // exposed for shadow flicker in main.js
 

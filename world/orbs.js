@@ -108,12 +108,14 @@ function _collectOrb(index) {
     _updateOrbHUD();
 
     if (collectedCount >= ORB_POSITIONS.length) {
-        // All orbs collected!
+        // Show the collection toast first
+        showToast('💎 Orb Collected!', `${collectedCount} / ${ORB_POSITIONS.length} island treasures found.`, 4000);
+        // Then after 4.5 seconds, show the final completion toast
         setTimeout(() => {
-            showToast('✨ All Orbs Found!', 'You have discovered all the hidden treasures of this island. The creator salutes you!', 5000);
-        }, 500);
+            showToast('✨ All Treasures Found!', 'You have discovered all the secrets of this island. The creator salutes you!', 8000);
+        }, 4500);
     } else {
-        showToast('💎 Orb Collected!', `${collectedCount} / ${ORB_POSITIONS.length} island treasures found.`);
+        showToast('💎 Orb Collected!', `${collectedCount} / ${ORB_POSITIONS.length} island treasures found.`, 4000);
     }
 }
 

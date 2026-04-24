@@ -1,5 +1,5 @@
 import { getSectionsData } from './portfolioSections.js';
-import { playChime } from '../world/soundscape.js';
+import { playChime, playNotification } from '../world/soundscape.js';
 
 
 // Central State
@@ -126,6 +126,9 @@ export function showToast(title, message, duration = 3000) {
 
     document.getElementById('toast-title').textContent = title;
     document.getElementById('toast-msg').textContent = message;
+
+    // Play the pop/notification sound!
+    try { playNotification(); } catch(e) {}
 
     // Clear any running timer
     if (_toastTimer) clearTimeout(_toastTimer);

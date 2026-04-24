@@ -22,7 +22,7 @@ export function createRenderer() {
     
     // Enable shadows
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadows
+    renderer.shadowMap.type = THREE.PCFShadowMap; // Faster shadows (soft shadows not noticeable in low-poly)
     
     // Tone mapping for better colors
     renderer.toneMapping = THREE.ACESFilmicToneMapping;

@@ -205,3 +205,22 @@ export function raycastCamera(origin, direction, maxToi) {
     }
     return maxToi;
 }
+
+export function getGroundHeight(x, z, startY = 100) {
+    if (!world) return 0;
+    // Ray from high in the sky pointing straight down
+    const ray = new RAPIER.Ray({ x, y: startY, z }, { x: 0, y: -1, z: 0 });
+    
+    // Cast ray against static geometry
+    const hit = world.castRay(
+        ray, 
+        startY + 20, 
+        true, 
+        RAPIER.QueryFilterFlags.EXCLUDE_DYNAMIC
+    );
+    
+    if (hit) {
+        return startY - hit.toi;
+    }
+    return 0;
+}

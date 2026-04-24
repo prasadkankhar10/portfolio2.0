@@ -1,30 +1,29 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import { getGroundHeight } from '../physics/physics.js';
 
 // ─── NPC Definitions ──────────────────────────────────────────────────────────
 const NPC_CONFIGS = [
     {
         id: 'wanderer',
-        // Patrol in a slow oval around the town square
-        patrolCenter: new THREE.Vector3(-14, 0, -8),
-        patrolRadius: 6,
-        patrolSpeed: 0.4,       // radians per second
+        // Patrol in a slow oval around the town square/stalls
+        patrolCenter: new THREE.Vector3(-15, 0, -10),
+        patrolRadius: 5,
+        patrolSpeed: 0.35,      // radians per second
         behaviorType: 'patrol',
         // Blue-grey tunic tint to differentiate from the player
         colorTint: new THREE.Color(0.72, 0.78, 0.92),
-        spawnY: 2,
     },
     {
         id: 'guard',
-        // Stands near castle gate
-        spawnX: -4,
-        spawnZ: 2,
-        spawnY: 2,
+        // Stands right near the village start point (facing the player)
+        spawnX: -7,
+        spawnZ: -8,
         behaviorType: 'idle_sway',
         // Warm red-brown guard tunic tint
         colorTint: new THREE.Color(0.90, 0.62, 0.55),
-        swaySpeed: 0.4,         // very slow look-around
+        swaySpeed: 0.3,         // very slow look-around
     },
 ];
 
@@ -34,7 +33,6 @@ const npcInstances = [];
 // Shared reusable objects to avoid GC pressure
 const _tempQuat  = new THREE.Quaternion();
 const _upAxis    = new THREE.Vector3(0, 1, 0);
-const _tempAngle = { v: 0 };
 
 // ─── Setup ───────────────────────────────────────────────────────────────────
 export async function setupNPCs(scene) {
@@ -71,15 +69,18 @@ export async function setupNPCs(scene) {
 
         const group = new THREE.Group();
 
+        let initialX, initialZ;
         if (cfg.behaviorType === 'patrol') {
-            group.position.set(
-                cfg.patrolCenter.x + cfg.patrolRadius,
-                cfg.spawnY,
-                cfg.patrolCenter.z
-            );
+            initialX = cfg.patrolCenter.x + cfg.patrolRadius;
+            initialZ = cfg.patrolCenter.z;
         } else {
-            group.position.set(cfg.spawnX, cfg.spawnY, cfg.spawnZ);
+            initialX = cfg.spawnX;
+            initialZ = cfg.spawnZ;
         }
+
+        // Snap to ground height
+        const groundY = getGroundHeight(initialX, initialZ);
+        group.position.set(initialX, groundY, initialZ);
 
         group.add(modelClone);
         scene.add(group);
@@ -113,11 +114,10 @@ export async function setupNPCs(scene) {
             mixer,
             animations,
             currentAction: startAnim,
-            patrolAngle: 0,   // for patrol NPC
-            swayAngle: 0,     // for idle NPC
+            patrolAngle: 0,
         });
 
-        console.log(`✅ NPC "${cfg.id}" spawned`);
+        console.log(`✅ NPC "${cfg.id}" spawned at y=${groundY.toFixed(2)}`);
     }
 }
 
@@ -140,24 +140,26 @@ function _updatePatrol(npc, delta) {
     npc.patrolAngle += cfg.patrolSpeed * delta;
 
     const nx = cfg.patrolCenter.x + Math.sin(npc.patrolAngle) * cfg.patrolRadius;
-    const nz = cfg.patrolCenter.z + Math.cos(npc.patrolAngle) * (cfg.patrolRadius * 0.55); // oval not circle
+    const nz = cfg.patrolCenter.z + Math.cos(npc.patrolAngle) * (cfg.patrolRadius * 0.7);
 
-    // Face the direction of travel (tangent of the circle)
+    // Face the direction of travel
     const tanX = Math.cos(npc.patrolAngle);
-    const tanZ = -Math.sin(npc.patrolAngle) * 0.55;
+    const tanZ = -Math.sin(npc.patrolAngle) * 0.7;
     const targetAngle = Math.atan2(tanX, tanZ);
 
     _tempQuat.setFromAxisAngle(_upAxis, targetAngle);
-    npc.group.quaternion.slerp(_tempQuat, 8 * delta);
+    npc.group.quaternion.slerp(_tempQuat, 6 * delta);
 
+    // Update position and keep snapped to terrain
     npc.group.position.x = nx;
     npc.group.position.z = nz;
+    npc.group.position.y = getGroundHeight(nx, nz);
 }
 
 // ─── Idle Sway Behaviour ──────────────────────────────────────────────────────
 function _updateIdleSway(npc, delta, totalTime) {
-    // Gentle slow head-turn / body sway using whole-group Y rotation
-    const swayYaw = Math.sin(totalTime * npc.cfg.swaySpeed) * 0.4; // ±0.4 rad = ~23°
+    // Gentle slow look-around
+    const swayYaw = Math.sin(totalTime * npc.cfg.swaySpeed) * 0.5;
     _tempQuat.setFromAxisAngle(_upAxis, swayYaw);
     npc.group.quaternion.slerp(_tempQuat, 2 * delta);
 }

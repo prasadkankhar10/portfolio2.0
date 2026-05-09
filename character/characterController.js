@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 export function createCharacter(scene) {
     const playerGroup = new THREE.Group();
@@ -25,11 +24,8 @@ export function createCharacter(scene) {
         isLoaded: false
     };
 
-    const dracoLoader = new DRACOLoader();
-    dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
     const loader = new GLTFLoader();
-    loader.setDRACOLoader(dracoLoader);
-    loader.load('./assets/adventurer_draco.glb', (gltf) => {
+    loader.load('./assets/Adventurer (2).glb', (gltf) => {
         fallbackMesh.visible = false;
         const model = gltf.scene;
 
@@ -45,21 +41,15 @@ export function createCharacter(scene) {
 
         // Apply hardcoded scale from user
         model.scale.setScalar(0.293);
-
-        // Update matrices to calculate accurate bounding box
-        model.updateMatrixWorld(true);
-        const box = new THREE.Box3().setFromObject(model);
         
-        // Fix floating: perfectly align the lowest vertex (feet) to y=0
-        model.position.y -= box.min.y;
-
+        const box = new THREE.Box3().setFromObject(model);
         const size = new THREE.Vector3();
         box.getSize(size);
         
         // Add to group
         playerGroup.add(model);
 
-        console.log(`🧍 Character loaded! Scaled Height: ${size.y.toFixed(2)}m, BBox Min Y: ${box.min.y.toFixed(3)}m`);
+        console.log(`🧍 Character loaded! Scaled Height: ${size.y.toFixed(2)}m`);
 
         // Setup Animations
         if (gltf.animations && gltf.animations.length > 0) {

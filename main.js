@@ -4,6 +4,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { createScene, createRenderer } from './world/scene.js';
 import { setupLighting, updateLighting, getTimeOfDay } from './world/lighting.js';
 import { createCamera, handleResize } from './character/camera.js';
@@ -100,13 +101,16 @@ async function init() {
     // 2. Parallel Asset Loading (HUGE Performance Boost!)
     // Fire off all massive downloads at the exact same time instead of sequentially
     const textureLoader = new THREE.TextureLoader();
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
     const gltfLoader = new GLTFLoader();
+    gltfLoader.setDRACOLoader(dracoLoader);
 
     try {
         const [_, loadedWaterNormals, gltf] = await Promise.all([
             initPhysics(), // Downloads Rapier WASM
             textureLoader.loadAsync('./assets/water_normal.jpg'),
-            gltfLoader.loadAsync('./assets/working_portfolio11.glb')
+            gltfLoader.loadAsync('./assets/working_portfolio11_draco.glb')
         ]);
 
         // 3. Process loaded ocean textures

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 export function createCharacter(scene) {
     const playerGroup = new THREE.Group();
@@ -24,8 +25,11 @@ export function createCharacter(scene) {
         isLoaded: false
     };
 
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
     const loader = new GLTFLoader();
-    loader.load('./assets/Adventurer (2).glb', (gltf) => {
+    loader.setDRACOLoader(dracoLoader);
+    loader.load('./assets/adventurer_draco.glb', (gltf) => {
         fallbackMesh.visible = false;
         const model = gltf.scene;
 

@@ -1,0 +1,33 @@
+{
+    "day_tech": [
+        "Prasad writes very clean backend code.",
+        "Did you know Prasad built this engine using Three.js?",
+        "Prasad loves combining complex algorithms with beautiful UIs."
+    ],
+    "night_lore": [
+        "The stars are beautiful tonight, aren't they? Prasad thinks so too.",
+        "Game design is true art... Prasad wanted to make this feel magical.",
+        "Stories are hidden everywhere if you know where to look."
+    ],
+    "context_idle": [
+        "Are we going to just stand here all day?",
+        "The projects aren't going to look at themselves!",
+        "I'm glowing as brightly as I can, let's explore!"
+    ],
+    "context_sprint": [
+        "Slow down! I'm getting dizzy!",
+        "Where's the fire?! Have you even looked at the scenery?",
+        "Wait up!"
+    ],
+    "context_project": {
+        "project1": "Ah, Project 1! Prasad spent weeks getting the logic perfect here.",
+        "project2": "This one is a classic. Look at that UI.",
+        "project3": "Project 3! Prasad implemented some really clever optimizations for this.",
+        "project4": "I remember when Prasad first drafted this project on paper.",
+        "project5": "Project 5! A complex problem, but Prasad solved it beautifully.",
+        "project6": "This is one of Prasad's most creative implementations.",
+        "lab": "The Alchemist's Lab! This is where Prasad hones those programming spells.",
+        "library": "The Grand Library. Prasad's poetry and writing are archived here.",
+        "contact": "The Dock. You can send Prasad a message from right here."
+    }
+}

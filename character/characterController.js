@@ -43,17 +43,23 @@ export function createCharacter(scene) {
         // Store model reference
         characterData.model = model;
 
-        const box = new THREE.Box3().setFromObject(model);
-        const size = new THREE.Vector3();
-        box.getSize(size);
-        
         // Apply hardcoded scale from user
         model.scale.setScalar(0.293);
+
+        // Update matrices to calculate accurate bounding box
+        model.updateMatrixWorld(true);
+        const box = new THREE.Box3().setFromObject(model);
+        
+        // Fix floating: perfectly align the lowest vertex (feet) to y=0
+        model.position.y -= box.min.y;
+
+        const size = new THREE.Vector3();
+        box.getSize(size);
         
         // Add to group
         playerGroup.add(model);
 
-        console.log(`🧍 Character loaded! Original Height: ${size.y.toFixed(2)}m`);
+        console.log(`🧍 Character loaded! Scaled Height: ${size.y.toFixed(2)}m, BBox Min Y: ${box.min.y.toFixed(3)}m`);
 
         // Setup Animations
         if (gltf.animations && gltf.animations.length > 0) {

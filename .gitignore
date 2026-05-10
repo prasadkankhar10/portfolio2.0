@@ -10,3 +10,4 @@ thumbs.db
 # Explicitly KEEP ONLY the extremely optimized final assets we actually use!
 !public/assets/working_portfolio11_draco.glb
 !public/assets/adventurer_draco.glb
+!public/assets/Adventurer (2).glb

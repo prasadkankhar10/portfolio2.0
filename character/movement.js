@@ -1,24 +1,41 @@
 import * as THREE from 'three';
-import { movePlayer, isGrounded, getPlayerPhysicsPosition, raycastCamera, moveSpectator, setSpectatorPosition } from '../physics/physics.js';
+import { movePlayer, isGrounded, getPlayerPhysicsPosition, raycastCamera, moveSpectator, setSpectatorPosition, getVisualGroundHeight } from '../physics/physics.js';
 import { fadeToAction } from './characterController.js';
 import { playFootstep } from '../world/soundscape.js';
 
 // ─── Input State ────────────────────────────────────────────────────────────
-const keys = {
+export const keys = {
     w: false, a: false, s: false, d: false,
     shift: false, space: false, v: false,
-    control: false, q: false
+    control: false, q: false,
+    offsetUp: false, offsetDown: false // Debug offsets
 };
 export let isSpectatorMode = false;
 let spectatorJustToggled = false;
 
+// Expose setters for mobile/touch controls
+export function setKeyState(key, isDown) {
+    if (keys.hasOwnProperty(key)) keys[key] = isDown;
+}
+
+export function addCameraMovement(dx, dy) {
+    const sensitivity = 0.003; // slightly different for touch usually, but let's reuse logic
+    camYaw   -= dx * sensitivity;
+    camPitch -= dy * sensitivity;
+    camPitch = isSpectatorMode
+        ? Math.max(0.01, Math.min(Math.PI - 0.01, camPitch))
+        : Math.max(CAM_MIN_PITCH, Math.min(CAM_MAX_PITCH, camPitch));
+}
+
 // ─── Camera Orbit State ─────────────────────────────────────────────────────
 let CAM_DIST = 2.5;
 let targetCamDist = 2.5;
-const CAM_MIN_DIST = 1.0;
+const CAM_MIN_DIST = 0.3;
 const CAM_MAX_DIST = 8.0;
 const CAM_MIN_PITCH = 0.05;
 const CAM_MAX_PITCH = Math.PI / 2.1;
+// How far to pull camera in from any collision surface
+const CAM_COLLISION_MARGIN = 0.35;
 
 let camYaw   = 0;
 let camPitch = Math.PI / 8;
@@ -35,8 +52,9 @@ let bobAmp      = 0;
 let targetSpectatorFOV = 75;
 
 // Spring-damped camera state
-const currentCamPos  = new THREE.Vector3();
+const currentCamPos  = new THREE.Vector3(); // used by spectator only
 const currentLookAt  = new THREE.Vector3();
+let   currentCamDist = 2.5;                 // distance-spring for player cam
 let isFirstFrame = true;
 
 // Look-ahead target
@@ -96,6 +114,10 @@ export function setupControls(camera, renderer) {
         if (k === 'q') {
             shoulderSide = shoulderSide === 0 ? 1 : (shoulderSide === 1 ? -1 : 0);
         }
+        
+        // Debug Offset adjust
+        if (e.code === 'BracketRight') { window.debugMeshOffset = (window.debugMeshOffset || -0.26) + 0.01; console.log("Offset:", window.debugMeshOffset.toFixed(2)); }
+        if (e.code === 'BracketLeft') { window.debugMeshOffset = (window.debugMeshOffset || -0.26) - 0.01; console.log("Offset:", window.debugMeshOffset.toFixed(2)); }
     });
 
     window.addEventListener('keyup', (e) => {
@@ -289,7 +311,21 @@ function _updatePlayer(characterData, camera, delta) {
 
     // ── Mesh Transform ───────────────────────────────────────────────────────
     characterData.mesh.position.copy(safePos);
-    characterData.mesh.position.y -= 0.30;
+    
+    // ADVANCED RAYCAST: Snap visual mesh perfectly to ground if on terrain
+    if (grounded) {
+        const visualY = getVisualGroundHeight(safePos.x, safePos.y, safePos.z);
+        if (visualY !== null && !isNaN(visualY)) {
+            // Smoothly snap visual mesh to perfect ground height
+            const targetY = visualY; // We don't need the capsule offset here because raycast hits exactly at feet
+            characterData.mesh.position.y += (targetY - characterData.mesh.position.y) * Math.min(1, 20 * delta);
+        } else {
+            characterData.mesh.position.y += (window.debugMeshOffset !== undefined ? window.debugMeshOffset : -0.26);
+        }
+    } else {
+        // Airborne: use physics height + offset
+        characterData.mesh.position.y += (window.debugMeshOffset !== undefined ? window.debugMeshOffset : -0.26);
+    }
 
     // Crouch: lower mesh
     const crouchScale = isCrouching ? 0.75 : 1.0;
@@ -350,9 +386,9 @@ function _updatePlayer(characterData, camera, delta) {
     currentShoulderOffset += (shoulderSide * 0.55 - currentShoulderOffset) * 8 * delta;
 
     // ── Look-ahead offset ───────────────────────────────────────────────────
-    // Camera subtly shifts in direction of travel
+    // Camera subtly shifts in direction of travel (AAA feel)
     const lookAheadTarget = currentMomentum.clone().normalize().multiplyScalar(
-        isMoving ? currentMomentum.length() * 0.15 : 0
+        isMoving ? currentMomentum.length() * 0.25 : 0 // Increased for better leading
     );
     lookAheadOffset.lerp(lookAheadTarget, 5 * delta);
 
@@ -367,42 +403,64 @@ function _updatePlayer(characterData, camera, delta) {
     // ── Sprint Vignette ──────────────────────────────────────────────────────
     _updateSprintVignette(isSprinting && isMoving);
 
-    // ── Build LookAt & Camera Position ──────────────────────────────────────
+    // ── Camera pivot = character head (physics-guaranteed open space) ─────
     const crouchYOffset = isCrouching ? -0.25 : 0;
     const targetHeight  = 0.5 + bobOffset + idleSwyY + crouchYOffset;
-    const idealLookAt   = characterData.mesh.position.clone();
-    idealLookAt.x += lookAheadOffset.x * 0.5 + idleSwyX;
-    idealLookAt.y += targetHeight;
-    idealLookAt.z += lookAheadOffset.z * 0.5;
+    const pivot = characterData.mesh.position.clone();
+    pivot.x += lookAheadOffset.x * 0.5 + idleSwyX;
+    pivot.y += targetHeight;
+    pivot.z += lookAheadOffset.z * 0.5;
 
-    const offset = new THREE.Vector3();
-    offset.x = CAM_DIST * Math.sin(camPitch) * Math.sin(camYaw) + currentShoulderOffset * Math.cos(camYaw);
-    offset.y = CAM_DIST * Math.cos(camPitch);
-    offset.z = CAM_DIST * Math.sin(camPitch) * Math.cos(camYaw) - currentShoulderOffset * Math.sin(camYaw);
+    // ── Orbit direction — re-derived every frame, NEVER spring-damped ────
+    // Damping the direction causes the camera to pass through walls
+    // during the transition. Damping only the scalar avoids this entirely.
+    const sinYaw = Math.sin(camYaw), cosYaw = Math.cos(camYaw);
+    const sinPit = Math.sin(camPitch), cosPit = Math.cos(camPitch);
+    const sf = currentShoulderOffset / Math.max(CAM_DIST, 0.01);
+    const orbitDir = new THREE.Vector3(
+        sinPit * sinYaw + sf * cosYaw,
+        cosPit,
+        sinPit * cosYaw - sf * sinYaw
+    ).normalize();
 
-    const idealCamPos = idealLookAt.clone().add(offset);
+    // ── Raycast from pivot along orbitDir ────────────────────────────────
+    // 6 rays (cross + up) for robust edge/corner detection.
+    // pivot is always valid — physics capsule keeps it outside geometry.
+    const jitter = 0.12;
+    const origins6 = [
+        pivot.clone(),
+        pivot.clone().add(new THREE.Vector3( jitter, 0,      0)),
+        pivot.clone().add(new THREE.Vector3(-jitter, 0,      0)),
+        pivot.clone().add(new THREE.Vector3(0,       0,  jitter)),
+        pivot.clone().add(new THREE.Vector3(0,       0, -jitter)),
+        pivot.clone().add(new THREE.Vector3(0,  jitter,      0)),
+    ];
+    let maxSafe = CAM_DIST;
+    for (const o of origins6) {
+        const hit = raycastCamera(o, orbitDir.clone(), CAM_DIST + 0.5);
+        if (hit < maxSafe) maxSafe = hit;
+    }
+    const targetDist = Math.max(0.2, maxSafe - 0.3);
 
-    // Camera Collision
-    const rayDir  = new THREE.Vector3().subVectors(idealCamPos, idealLookAt).normalize();
-    const hitDist = raycastCamera(idealLookAt, rayDir, CAM_DIST);
-    const safeDist    = Math.max(0.5, hitDist - 0.2);
-    const finalCamPos = idealLookAt.clone().add(rayDir.multiplyScalar(safeDist));
-
-    // ── Spring-Damped Camera ─────────────────────────────────────────────────
+    // ── Spring-damp the SCALAR distance only ─────────────────────────────
+    // Fast pull-in when wall detected; slow ease-out when space reopens.
     if (isFirstFrame) {
-        currentCamPos.copy(finalCamPos);
-        currentLookAt.copy(idealLookAt);
+        currentCamDist = targetDist;
+        currentLookAt.copy(pivot);
         isFirstFrame = false;
     } else {
-        // Fast reliable lerp — responsive yet smooth
-        currentCamPos.lerp(finalCamPos, 15 * delta);
-        currentLookAt.lerp(idealLookAt, 20 * delta);
+        const dd = targetDist - currentCamDist;
+        // Fast pull-in (25/s), cinematic slow ease-out (4/s)
+        currentCamDist += dd * (dd < 0 ? Math.min(1, 25 * delta) : Math.min(1, 4 * delta));
+        // Looser camera lock for more dynamic framing during acceleration
+        currentLookAt.lerp(pivot, Math.min(1, 12 * delta));
     }
 
-    camera.position.copy(currentCamPos);
+    // ── Place camera ──────────────────────────────────────────────────────
+    camera.position.copy(pivot).addScaledVector(orbitDir, currentCamDist);
     camera.lookAt(currentLookAt);
 
-    // ── Animations ──────────────────────────────────────────────────────────
+    // ── Animations ───────────────────────────────────────────────────────
     if (!grounded) {
         fadeToAction(characterData, 'jump', 0.2);
     } else if (!isMoving) {

@@ -21,9 +21,11 @@ import { initSoundscape, updateSoundscape, toggleMute } from './world/soundscape
 import { setupOrbs, updateOrbs } from './world/orbs.js';
 import { setupInteraction, updateInteraction } from './interaction/interactionManager.js';
 import { initUIController, getModalState, openModal } from './ui/uiController.js';
+import { initMobileControls } from './ui/mobileControls.js';
 import { populateTraditionalView } from './ui/portfolioSections.js';
 import { initPhysics, createIslandCollider, createPlayerController, createSpectatorController, setPlayerPosition } from './physics/physics.js';
-import { setupNPCs, updateNPCs } from './world/npcs.js';
+import { setupNPCs, updateNPCs, getNPCDebugInfo } from './world/npcs.js';
+import { initNPCEditor } from './world/npcEditor.js';
 
 let scene, camera, renderer, composer, playerData;
 let waterMesh;
@@ -39,6 +41,8 @@ let spawnZ = -7.110;
 let spawnY = 20;
 
 const clock = new THREE.Clock();
+let debugHUDVisible = false;
+let npcTeleportIndex = 0;
 
 async function init() {
     // 0. Fetch External Configuration Data First
@@ -110,7 +114,7 @@ async function init() {
         const [_, loadedWaterNormals, gltf] = await Promise.all([
             initPhysics(), // Downloads Rapier WASM
             textureLoader.loadAsync('./assets/water_normal.jpg'),
-            gltfLoader.loadAsync('./assets/working_portfolio11_draco.glb')
+            gltfLoader.loadAsync('./assets/working_portfolio11.glb') // Switched back to original uncompressed model
         ]);
 
         // 3. Process loaded ocean textures
@@ -299,7 +303,14 @@ async function init() {
         setupControls(camera, renderer);
 
         // Spawn NPCs after island so they share the same world space
-        setupNPCs(scene);
+        // Pass island scene so NPC raycaster uses the visual geometry for ground snapping
+        setupNPCs(scene, island);
+
+        // Mobile Controls
+        initMobileControls();
+
+        // NPC Editor
+        initNPCEditor(scene, camera);
 
         // UI & Interaction Setup
         const interactables = {};
@@ -428,6 +439,48 @@ async function init() {
 
     // Retained UI listeners
 
+
+    // ` (backtick) = toggle debug HUD
+    // N = teleport to next NPC
+    window.addEventListener('keydown', (e) => {
+        if (e.key === '`') {
+            debugHUDVisible = !debugHUDVisible;
+            const hud = document.getElementById('debug-hud');
+            if (hud) hud.style.display = debugHUDVisible ? 'block' : 'none';
+        }
+        if (e.key.toLowerCase() === 'n' && playerData) {
+            const npcs = getNPCDebugInfo();
+            if (npcs.length > 0) {
+                const target = npcs[npcTeleportIndex % npcs.length];
+                npcTeleportIndex++;
+                // Teleport player 2m in front of NPC
+                setPlayerPosition(new THREE.Vector3(target.x + 2, target.y + 5, target.z + 2));
+                console.log(`🚀 Teleported near NPC "${target.id}" at [${target.x.toFixed(1)}, ${target.y.toFixed(1)}, ${target.z.toFixed(1)}]`);
+            }
+        }
+    });
+
+    // Build debug HUD overlay
+    const debugHUD = document.createElement('div');
+    debugHUD.id = 'debug-hud';
+    debugHUD.style.cssText = `
+        display: none;
+        position: fixed;
+        top: 12px;
+        left: 12px;
+        z-index: 9999;
+        background: rgba(0,0,0,0.75);
+        color: #00ff88;
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        border: 1px solid rgba(0,255,136,0.3);
+        pointer-events: none;
+        min-width: 240px;
+        line-height: 1.7;
+    `;
+    document.body.appendChild(debugHUD);
 
     animate();
 
@@ -577,14 +630,32 @@ function animate() {
     updateParticles(delta, totalTime);
     updateFireflySwarms(delta, totalTime);
     updateLighting(delta);
-    updateNPCs(delta, totalTime);
 
     if (playerData && playerData.mesh) {
         updateFish(delta, playerData.mesh.position, totalTime);
         updateCompanion(delta, playerData.mesh, totalTime, nightStrength);
         updateOrbs(delta, playerData.mesh.position, totalTime);
+        updateNPCs(delta, totalTime, playerData.mesh.position);
     } else {
         updateFish(delta, null, totalTime);
+        updateNPCs(delta, totalTime, null);
+    }
+
+    // ── Debug HUD Update ─────────────────────────────────────────────────────
+    if (debugHUDVisible) {
+        const hud = document.getElementById('debug-hud');
+        if (hud && playerData && playerData.mesh) {
+            const p = playerData.mesh.position;
+            const npcs = getNPCDebugInfo();
+            const npcLines = npcs.map(n =>
+                `  ${n.snapped ? '✅' : '⏳'} ${n.id.padEnd(12)} [${n.x.toFixed(1)}, ${n.y.toFixed(1)}, ${n.z.toFixed(1)}]`
+            ).join('\n');
+            hud.textContent =
+                `── DEBUG HUD ─────────────────\n` +
+                `Player: [${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)}]\n` +
+                `NPCs (N=teleport next, \`=close):\n` +
+                (npcLines || '  (none loaded yet)');
+        }
     }
 
     composer.render();

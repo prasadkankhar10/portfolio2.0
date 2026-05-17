@@ -12,9 +12,9 @@ let spectatorCollider   = null;
 let spectatorController = null;
 
 const GRAVITY        = -20.0;  // m/s² downward
-const PLAYER_HALF_H  = 0.15;   // Half-height of the player capsule
-const PLAYER_RADIUS  = 0.15;   // Increased radius to prevent feet clipping into rocks
-const STEP_HEIGHT    = 0.25;    // Reduced step height so character gets blocked by taller rocks
+const PLAYER_HALF_H  = 0.10;   // Half-height of the player capsule (Total H: 0.5m)
+const PLAYER_RADIUS  = 0.15;   // Radius to prevent feet clipping into rocks
+const STEP_HEIGHT    = 0.10;    // Reduced step height to prevent hovering over small bumps
 const SLOPE_LIMIT    = Math.PI / 3; // 60° max walkable slope so character slides up rocks rather than snagging
 
 // ─── INIT RAPIER WASM ─────────────────────────────────────────────────────────
@@ -24,6 +24,11 @@ export async function initPhysics() {
     world = new RAPIER.World(gravity);
     console.log('✅ Rapier physics world initialised');
 }
+
+// ─── VISUAL RAYCASTER (For perfect ground snapping) ───────────────────────────
+const _raycaster = new THREE.Raycaster();
+const _rayDown = new THREE.Vector3(0, -1, 0);
+let _islandMeshes = [];
 
 // ─── BUILD ISLAND TRIMESH COLLIDER ────────────────────────────────────────────
 export function createIslandCollider(islandScene) {
@@ -35,6 +40,8 @@ export function createIslandCollider(islandScene) {
 
     islandScene.traverse((child) => {
         if (!child.isMesh) return;
+        
+        _islandMeshes.push(child); // Store for visual raycasting
 
         const geom = child.geometry.clone();
         geom.applyMatrix4(child.matrixWorld);
@@ -223,4 +230,16 @@ export function getGroundHeight(x, z, startY = 100) {
         return startY - hit.toi;
     }
     return 0;
+}
+
+export function getVisualGroundHeight(x, y, z) {
+    if (_islandMeshes.length === 0) return null;
+    // Start raycast slightly above current physics Y (e.g. head height) to find the ground below feet
+    _raycaster.set(new THREE.Vector3(x, y + 2.0, z), _rayDown);
+    _raycaster.far = 10.0; // Don't raycast infinitely, just enough to find floor
+    const hits = _raycaster.intersectObjects(_islandMeshes, false);
+    if (hits.length > 0) {
+        return hits[0].point.y;
+    }
+    return null;
 }
